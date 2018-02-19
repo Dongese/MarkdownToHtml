@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- 
+
 from PySide import QtGui, QtCore,QtWebKit
-from syntax import syntaxDict
+from syntax import syntaxDict,innerSyntax
 import os 
 
 class MarkdownEditor(QtGui.QWidget):
@@ -71,45 +74,71 @@ class MarkdownEditor(QtGui.QWidget):
 	def writeHtml(self,stringList):
 		for item in stringList:
 			if item == "":continue
-
+			value = SyntaxHandler(item)
+			with open("save.html","w") as f:
+				f.write(value.syntaxHanler())
+				f.write("\n")
 
 class SyntaxHandler(object):
 	def __init__(self,string):
-		self.string     = string.split(" ")
-		self.flag       = False
-		self.headTag    = None
-		self.endTag     = None
-		self.lastEndTag = None
-		self.spaceCount = 0
+		self.string     = string.split("\n")
+		
+		self.upSyntax        = None
+		self.downSyntax      = None
+		self.innerUpSyntax   = None
+		self.innerDownSyntax = None
+		self.endSyntax       = []
+		self.spaceRecord     = []
+		
+	def syntaxHanler(self):
+		self.string = [self.syntax(stringLine) for stringLine in self.string]
+		self.string = [stringLine for stringLine in self.string if stringLine is not None]
+		self.endSyntax.reverse()
+		self.string = " ".join(self.string + self.endSyntax)
+		return self.string
 
-	def syntaxType1(self):
-		self.string = [self.syntax(strItem) for strItem in self.string]
+	def syntax(self,stringLine):
+		if stringLine.count(" ") == len(stringLine):return None
+		stringLine = stringLine.split(" ")
+		spaceCount = 0
+		if self.upSyntax is None and self.downSyntax is None:
+			for i in xrange(len(stringLine)):
+				if self.upSyntax is not None and self.downSyntax is not None: break
+				if stringLine[i].endswith("."):stringLine[i] = "."
+				if stringLine[i] in syntaxDict:
+					self.upSyntax,self.downSyntax = syntaxDict[stringLine[i]].split(",")
+					if stringLine[i] in innerSyntax:
+						self.innerUpSyntax, self.innerDownSyntax = innerSyntax[stringLine[i]].split(",")
+					stringLine[i] = ""
 
-	def syntax(self,item):
-		if self.flag: return item
+				elif stringLine[i] == "":
+					spaceCount += 1
+					self.upSyntax,self.downSyntax = ("<pre><code>","</code></pre>") if spaceCount == 4 else (None,None)
 
-		if item in syntaxDict: 
-			syntaxs = syntaxDict[item].split(",")
+				else:
+					self.upSyntax, self.downSyntax = "<p>","</p>"
 
-		elif item == " ":
-			self.spaceCount += 1
-			syntaxs = ["<pre><code>","</code></pre>"] if self.spaceCount == 4 else []
+			self.spaceRecord.append(spaceCount)
+			self.endSyntax.append(self.downSyntax)
 
+			if self.innerUpSyntax is not None and self.innerDownSyntax is not None:
+				self.endSyntax.append(self.innerDownSyntax)
+				return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
+			else:
+				return " ".join([self.upSyntax] + stringLine[spaceCount+1:])
 		else:
-			syntaxs = ["<p>","</p>"]
-
-
-		if len(syntaxs) == 2: 
-			self.headTag,self.endTag = syntaxs
-			self.flag                = True
-
-		elif len(syntaxs) == 4:
-			self.headTag
-
-
-
-
-
+			for i in xrange(len(stringLine)):
+				if stringLine[i] == "": spaceCount += 1
+				if stringLine[i].endswith("."):stringLine[i] = "."
+				if stringLine[i] in innerSyntax:
+					self.spaceRecord.append(spaceCount)
+					stringLine[i] = ""
+					if spaceCount <= self.spaceRecord[-2]:
+						return " ".join([self.innerDownSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
+					else:
+						self.endSyntax.append(self.downSyntax)
+						self.endSyntax.append(self.innerDownSyntax)
+						return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
 
 
 class QTextEdit(QtGui.QTextEdit):
@@ -146,6 +175,9 @@ class TextWidget(QtGui.QStyledItemDelegate):
 
 	def eventFilter(self,editor,event):
 		if event.type() == QtCore.QEvent.Type.KeyPress:
+
+			self.widget.detectRefresh()
+
 			if event.key() == QtCore.Qt.Key_Return:
 				self.widget.editor.setRowHeight(self.widget.editor.currentIndex().row(),editor.document().size().height() + 20)
 

@@ -37,7 +37,7 @@ class MarkdownEditor(QtGui.QWidget):
 		#create the layout
 		layout = QtGui.QGridLayout()
 		#create the webView widget for preview
-		webView = QtWebKit.QWebView()
+		self.webView = QtWebKit.QWebView()
 		#create the label, the button for the webView
 		webViewLabel = QtGui.QLabel("PREVIEW")
 		button       = QtGui.QToolButton()
@@ -48,7 +48,7 @@ class MarkdownEditor(QtGui.QWidget):
 		# set the label, button and preview to the layout
 		layout.addWidget(webViewLabel,0,0)
 		layout.addWidget(button,0,1)
-		layout.addWidget(webView,1,0,1,2)
+		layout.addWidget(self.webView,1,0,1,2)
 		layout.addWidget(self.webSaveLabel,2,0,1,2)
 		#set layout to the previewGroup
 		previewGroup.setLayout(layout)
@@ -69,14 +69,15 @@ class MarkdownEditor(QtGui.QWidget):
 	def detectRefresh(self):
 		if self.copyData != self.model.stringList():
 			self.writeHtml(self.model.stringList())
+			self.webView.load(QtCore.QUrl.fromLocalFile(os.path.join(os.getcwd(),"save.html")))
 			self.copyData = self.model.stringList()
 
 	def writeHtml(self,stringList):
-		for item in stringList:
-			if item == "":continue
-			value = SyntaxHandler(item)
-			with open("save.html","w") as f:
-				f.write(value.syntaxHanler())
+		with open("save.html","wt") as f:
+			for item in stringList:
+				if item == "":continue
+				value = SyntaxHandler(item)
+				f.write(value.syntaxHanler().encode('utf-8'))
 				f.write("\n")
 
 class SyntaxHandler(object):
@@ -101,6 +102,7 @@ class SyntaxHandler(object):
 		if stringLine.count(" ") == len(stringLine):return None
 		stringLine = stringLine.split(" ")
 		spaceCount = 0
+		extraSpace = 1
 		if self.upSyntax is None and self.downSyntax is None:
 			for i in xrange(len(stringLine)):
 				if self.upSyntax is not None and self.downSyntax is not None: break
@@ -117,15 +119,16 @@ class SyntaxHandler(object):
 
 				else:
 					self.upSyntax, self.downSyntax = "<p>","</p>"
+					extraSpace = 0
 
 			self.spaceRecord.append(spaceCount)
 			self.endSyntax.append(self.downSyntax)
 
 			if self.innerUpSyntax is not None and self.innerDownSyntax is not None:
 				self.endSyntax.append(self.innerDownSyntax)
-				return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
+				return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+extraSpace:])
 			else:
-				return " ".join([self.upSyntax] + stringLine[spaceCount+1:])
+				return " ".join([self.upSyntax] + stringLine[spaceCount+extraSpace:])
 		else:
 			for i in xrange(len(stringLine)):
 				if stringLine[i] == "": spaceCount += 1
@@ -134,11 +137,11 @@ class SyntaxHandler(object):
 					self.spaceRecord.append(spaceCount)
 					stringLine[i] = ""
 					if spaceCount <= self.spaceRecord[-2]:
-						return " ".join([self.innerDownSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
+						return " ".join([self.innerDownSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+extraSpace:])
 					else:
 						self.endSyntax.append(self.downSyntax)
 						self.endSyntax.append(self.innerDownSyntax)
-						return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+1:])
+						return " ".join([self.upSyntax] + [self.innerUpSyntax] + stringLine[spaceCount+extraSpace:])
 
 
 class QTextEdit(QtGui.QTextEdit):

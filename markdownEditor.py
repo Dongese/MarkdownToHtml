@@ -11,6 +11,7 @@ class MarkdownEditor(QtGui.QWidget):
 		self.setLayout(self._createEditor())
 		self._settingEditor()
 		self.copyData = []
+		
 	def _createEditor(self):
 		#Group box for editor and its label
 		editorGroup = QtGui.QGroupBox()

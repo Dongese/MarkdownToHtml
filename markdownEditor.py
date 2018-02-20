@@ -24,11 +24,11 @@ class MarkdownEditor(QtGui.QWidget):
 		self.editor.setModel(self.model)
 		#create the label for editor
 		editorLabel = QtGui.QLabel("MARKDOWN")
-		infoLabel   = QtGui.QLabel("WORDS:100")
+		self.infoLabel   = QtGui.QLabel()
 		# add the label and editor to layout
 		layout.addWidget(editorLabel,0,0)
 		layout.addWidget(self.editor,1,0)
-		layout.addWidget(infoLabel,2,0)
+		layout.addWidget(self.infoLabel,2,0)
 		#set layout to the editorGroup
 		editorGroup.setLayout(layout)
 
@@ -68,6 +68,7 @@ class MarkdownEditor(QtGui.QWidget):
 	    
 	def detectRefresh(self):
 		if self.copyData != self.model.stringList():
+			#self.infoLabel.setText("WORDS:%d" % sum([len(item.split(" ")) for item in self.model.stringList()]))
 			self.writeHtml(self.model.stringList())
 			self.webView.load(QtCore.QUrl.fromLocalFile(os.path.join(os.getcwd(),"save.html")))
 			self.copyData = self.model.stringList()
